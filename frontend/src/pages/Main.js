@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import io from 'socket.io-client';
 import { Link } from 'react-router-dom';
 import './Main.css';
 
@@ -7,10 +8,12 @@ import api from '../services/api';
 import logo from '../assets/logo.svg'; /*Importando a logo. Lembre-se que ela se torna uma variável JS*/
 import like from '../assets/like.svg';
 import dislike from '../assets/dislike.svg';
+import itsamatch from '../assets/itsamatch.png';
 
 export default function Main({ match }) {
     const [users, setUsers] = useState([]); /*Aqui inicializou com um array vazio porque essa variável irá guardar vários devs que serão mostrados pro usuário que acessar o app*/
-    
+    const [matchDev, setMatchDev] = useState(null);/*Variável pra guardar o estado de quando der um match*/
+
     useEffect(() => {
         async function loadUsers(){
             const response = await api.get('/devs', {
@@ -23,7 +26,17 @@ export default function Main({ match }) {
         }
 
         loadUsers();
-    }, [match.params.id]); /*Toda vez que o id da url for alterado, a função passada como parâmetro será chamada novamente*/
+    }, [match.params.id]); /*Toda vez que o id da url for alterado, a função passada como parâmetro será chamada novamente. Aqui acontece a chamada a API*/
+
+    useEffect(() => {
+        const socket = io('http://localhost:3333', {
+          query: { user: match.params.id }  /*Enviando o id da conexão do usuário que está conectando pro back end */
+        }); /*Conectando ao back end*/
+
+        socket.on('match', dev => {
+            setMatchDev(dev); /*Faz com que o matchDev seja um objeto contendo todas as informções do dev com o qual você deu match*/
+        })
+    }, [match.params.id]); /*Aqui vai conectar o front end ao websocket*/
     
     async function handleLike(id) {
         await api.post(`/devs/${id}/likes`, null, {
@@ -70,6 +83,18 @@ export default function Main({ match }) {
             </ul>
             ) : (
                 <div className="empty">Acabaram-se os devs! ='(</div>
+            )}
+
+            {matchDev && (
+                <div className="match-container">
+                    <img src={itsamatch} alt="It´s a match"/>
+
+                    <img className='avatar' src={matchDev.avatar} alt="Avatar"/>
+                    <strong>{matchDev.name}</strong>
+                    <p>{matchDev.bio}</p>
+
+                    <button type='button' onClick={() => setMatchDev(null)}>FECHAR</button>
+                </div>
             )}
         </div>
     );
